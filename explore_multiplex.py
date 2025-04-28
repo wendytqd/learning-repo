@@ -75,43 +75,55 @@ for group_col in demographic_columns:
         stat_results[group_col][cytokine] = cytokine_stats # Save the results for this cytokine
 
 # Save everything to an Excel file
-output_path = os.path.join(os.path.dirname(__file__), 'multiplexELISA_statistics.xlsx')
+output_path = os.path.join(os.path.dirname(__file__), 'multiplexELISA_stat.xlsx')
 with pd.ExcelWriter(output_path) as writer:
     # Write global statistics to sheet 'Global'
     global_stats.to_excel(writer, sheet_name='Global')
     # Write subgroup statistics to separate sheets
     for group_col, cytokine_stats in stat_results.items():
-        stats_df = pd.DataFrame(cytokine_stats) # Transpose to have cytokines as rows
-        stats_df.to_excel(writer, sheet_name=group_col)
+        rows = [] # Create a list to collect rows
+        for cytokine, groups in cytokine_stats.items():
+            for group_value, stats in groups.items():
+                for stat_name, value in stats.items():
+                    rows.append({group_col: group_value,
+                                 'Stat': stat_name,
+                                 cytokine: value})
+        # Build a DataFrame from the rows
+        formatted_df = pd.DataFrame(rows)
+        # Pivot the DataFrame to have cytokines as columns and stats as rows
+        final_df = formatted_df.pivot_table(index=[group_col, 'Stat'], aggfunc='first')
+
+        final_df.to_excel(writer, sheet_name=group_col)
+    
 
 # ---------- Build Node Feature Vectors for the Directed Graph ----------
 
 # Create a dictionary mapping cytokine names to feature vectors
-node_features_dict={}
+# node_features_dict={}
 
-# global_stats index should be cytokine names
-for cytokine in global_stats.index:
-    # Extract global features as a list
-    global_features = global_stats.loc[cytokine].values.tolist()
+# # global_stats index should be cytokine names
+# for cytokine in global_stats.index:
+#     # Extract global features as a list
+#     global_features = global_stats.loc[cytokine].values.tolist()
 
-    # For each demographic group, extract the subgroup-specific features (append mean values for each group)
-    demo_features = []
-    for group_col in demographic_columns:
-        if cytokine in stat_results[group_col]:
-            group_stats = stat_results[group_col][cytokine]
-            for subgroup in sorted(group_stats.keys()):
-                demo_features.append(group_stats[subgroup]['Mean'])
-        else:
-            demo_features.append(0)
+#     # For each demographic group, extract the subgroup-specific features (append mean values for each group)
+#     demo_features = []
+#     for group_col in demographic_columns:
+#         if cytokine in stat_results[group_col]:
+#             group_stats = stat_results[group_col][cytokine]
+#             for subgroup in sorted(group_stats.keys()):
+#                 demo_features.append(group_stats[subgroup]['Mean'])
+#         else:
+#             demo_features.append(0)
 
-    # Concatenate global and demographic features
-    feature_vector = global_features + demo_features
-    node_features_dict[cytokine] = feature_vector
+#     # Concatenate global and demographic features
+#     feature_vector = global_features + demo_features
+#     node_features_dict[cytokine] = feature_vector
 
 # ---------- Construct the Directed Graph ----------
-G = nx.DiGraph()
+# G = nx.DiGraph()
 
 # Add cytokine nodes with their feature vectors
-for cytokine , features in node_features_dict.items():
-    G.add_node(cytokine, features=features)
+#for cytokine , features in node_features_dict.items():
+#    G.add_node(cytokine, features=features)
 
